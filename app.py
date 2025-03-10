@@ -18,7 +18,7 @@ model = SentenceTransformer("all-MiniLM-L6-v2")
 def fetch_data():
     """Fetch freelancer and project data from MongoDB and preprocess."""
     freelancers = list(db["freelancers_data"].find({}, {"_id": 0}))
-    projects = list(db["projects_data"].find({}, {"_id": 0}))
+    projects = list(db["jobpostings"].find({}, {"_id": 0}))
 
     if not freelancers or not projects:
         return None, None
@@ -38,13 +38,11 @@ freelancer_df, project_df = fetch_data()
 if freelancer_df is not None and project_df is not None:
     freelancer_texts = freelancer_df.apply(lambda x:
         f"Skills: {', '.join(x['skills'])}. "
-        f"Experience: {x['experience']} years. "
         f"Pay: {x['pay_range']}.", axis=1)
     
     project_texts = project_df.apply(lambda x:
         f"Requirements: {', '.join(x['requirements'])}. "
-        f"Minimum Experience: {x['min_experience']} years. "
-        f"Budget: {x['budget']}.", axis=1)
+        f"Salary: {str(x.get('salary', 'Not specified'))}.", axis=1)
 
     freelancer_embeddings = model.encode(freelancer_texts.tolist(), normalize_embeddings=True)
     project_embeddings = model.encode(project_texts.tolist(), normalize_embeddings=True)
@@ -74,10 +72,9 @@ def get_freelancer_recommendations(freelancer_name):
     recommended_projects = []
     for j in top_matches:
         recommended_projects.append({
-            "client": project_df.iloc[j]['client'],
+            "title": project_df.iloc[j]['title'],
             "requirements": project_df.iloc[j]['requirements'],
-            "min_experience": int(project_df.iloc[j]['min_experience']),
-            "budget": str(project_df.iloc[j]['budget'])  # Convert NumPy types to JSON-compatible format
+            "salary": str(project_df.iloc[j]['salary'])  # Convert NumPy types to JSON-compatible format
         })
 
     return jsonify({
